@@ -283,6 +283,5 @@ fn find_bin_file(file: &str) -> Option<PathBuf> {
         path.split(':')
             .map(|p| Path::new(p).join(file))
             .find(|p| p.exists())
-            .to_owned()
     })
 }
