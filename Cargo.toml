@@ -12,5 +12,5 @@ documentation = "https://github.com/kstep/systemd-networkd-vpnc/blob/master/READ
 
 [dependencies]
 envy = "0.4.1"
-serde_derive = "1.0.117"
 serde = "1.0.118"
+serde_derive = "1.0.117"
