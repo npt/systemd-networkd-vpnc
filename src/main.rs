@@ -3,7 +3,6 @@ use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 
 const NETWORKCTL: &str = "networkctl";
-const DEFAULT_TUNDEV: &str = "tun0";
 const SYSTEMD_NETWORKD_CONFIG_DIR: &str = "/etc/systemd/network/";
 
 /// looks up a binary in `PATH`
@@ -78,7 +77,6 @@ enum Reason {
 struct Config {
     reason: Reason,
     vpngateway: String,
-    #[serde(default = "Config::default_tundev")]
     tundev: String,
 
     #[serde(rename = "internal_ip4_address")]
@@ -114,10 +112,6 @@ impl Config {
 
     fn default_split_routes() -> usize {
         0
-    }
-
-    fn default_tundev() -> String {
-        String::from(DEFAULT_TUNDEV)
     }
 }
 
