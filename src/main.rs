@@ -6,15 +6,9 @@ const NETWORKCTL: &str = "networkctl";
 const DEFAULT_TUNDEV: &str = "tun0";
 const SYSTEMD_NETWORKD_CONFIG_DIR: &str = "/etc/systemd/network/";
 
-struct Changed(bool);
-
-impl Changed {
-    fn yes() -> Changed {
-        Changed(true)
-    }
-    fn no() -> Changed {
-        Changed(false)
-    }
+enum Changed {
+    Yes,
+    No,
 }
 
 struct Networkctl {
@@ -133,7 +127,7 @@ impl From<std::io::Error> for Error {
 }
 
 fn main() -> Result<(), Error> {
-    if Process::new()?.run()?.0 {
+    if matches!(Process::new()?.run()?, Changed::Yes) {
         Networkctl::new().reload()?;
     }
     Ok(())
@@ -171,20 +165,20 @@ impl Process {
     }
 
     fn reconnect(&self) -> Result<Changed, std::io::Error> {
-        Ok(Changed::no())
+        Ok(Changed::No)
     }
 
     fn pre_init(&self) -> Result<Changed, std::io::Error> {
-        Ok(Changed::no())
+        Ok(Changed::No)
     }
 
     fn attempt_reconnect(&self) -> Result<Changed, std::io::Error> {
-        Ok(Changed::no())
+        Ok(Changed::No)
     }
 
     fn disconnect(&self) -> Result<Changed, std::io::Error> {
         std::fs::remove_file(&self.network_file)?;
-        Ok(Changed::yes())
+        Ok(Changed::Yes)
     }
 
     fn connect(&self) -> Result<Changed, std::io::Error> {
@@ -274,7 +268,7 @@ IPv6AcceptRA=no
                 writeln!(file, "DNS={}", ns)?;
             }
         }
-        Ok(Changed::yes())
+        Ok(Changed::Yes)
     }
 }
 
