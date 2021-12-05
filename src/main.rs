@@ -6,6 +6,12 @@ const NETWORKCTL: &str = "networkctl";
 const DEFAULT_TUNDEV: &str = "tun0";
 const SYSTEMD_NETWORKD_CONFIG_DIR: &str = "/etc/systemd/network/";
 
+/// looks up a binary in `PATH`
+///
+/// There may be two reasons to do this:
+/// - verify that a command exists before trying to run it
+/// - always use the same binary even if the contents of the directories listed
+///   in `PATH` changes.
 fn find_bin_file(file: &str) -> Option<PathBuf> {
     std::env::var("PATH").ok().and_then(|path| {
         path.split(':')
@@ -14,6 +20,7 @@ fn find_bin_file(file: &str) -> Option<PathBuf> {
     })
 }
 
+/// Wrapper around the systemd's `networkctl` command
 struct Networkctl {
     bin: PathBuf,
 }
@@ -132,6 +139,7 @@ impl From<std::io::Error> for Error {
     }
 }
 
+/// specifies if the network configuration has changed
 enum Changed {
     Yes,
     No,
