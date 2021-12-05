@@ -121,22 +121,12 @@ impl Config {
     }
 }
 
-#[derive(Debug)]
+#[derive(thiserror::Error, Debug)]
 enum Error {
-    Io(std::io::Error),
-    Env(envy::Error),
-}
-
-impl From<envy::Error> for Error {
-    fn from(err: envy::Error) -> Self {
-        Error::Env(err)
-    }
-}
-
-impl From<std::io::Error> for Error {
-    fn from(err: std::io::Error) -> Self {
-        Error::Io(err)
-    }
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
+    #[error(transparent)]
+    Env(#[from] envy::Error),
 }
 
 /// specifies if the network configuration has changed

@@ -14,3 +14,4 @@ documentation = "https://github.com/kstep/systemd-networkd-vpnc/blob/master/READ
 envy = "0.4"
 serde = "1.0"
 serde_derive = "1.0"
+thiserror = "1.0"
