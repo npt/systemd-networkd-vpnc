@@ -10,8 +10,16 @@ readme = "README.md"
 repository = "https://github.com/kstep/systemd-networkd-vpnc"
 documentation = "https://github.com/kstep/systemd-networkd-vpnc/blob/master/README.md"
 
+[features]
+default = []
+daemon = ["tarpc", "tokio", "tokio-util"]
+
 [dependencies]
+anyhow = "1.0"
+argh = "0.1"
 envy = "0.4"
-serde = "1.0"
-serde_derive = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+tarpc = { optional = true, version = "0.27", features = ["serde-transport", "serde-transport-bincode"] }
 thiserror = "1.0"
+tokio = { optional = true, version = "1", features = ["macros", "net"] }
+tokio-util = { optional = true, version = "0.6" }

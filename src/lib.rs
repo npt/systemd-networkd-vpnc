@@ -1,4 +1,6 @@
-use serde_derive::Deserialize;
+#[cfg(feature = "daemon")]
+pub mod daemon;
+
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 
@@ -20,7 +22,7 @@ fn find_bin_file(file: &str) -> Option<PathBuf> {
 }
 
 /// Wrapper around the systemd's `networkctl` command
-pub struct Networkctl {
+struct Networkctl {
     bin: PathBuf,
 }
 
@@ -39,8 +41,8 @@ impl Networkctl {
     }
 }
 
-#[derive(Debug, Deserialize)]
-struct Route {
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub(crate) struct Route {
     addr: String,
     mask: String,
     masklen: u8,
@@ -62,7 +64,7 @@ impl Route {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "kebab-case")]
 enum Reason {
     Connect,
@@ -72,9 +74,9 @@ enum Reason {
     Reconnect,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 #[allow(dead_code)]
-pub struct Config {
+pub(crate) struct Config {
     reason: Reason,
     vpngateway: String,
     tundev: String,
@@ -115,38 +117,43 @@ impl Config {
     }
 }
 
+fn split_routes(config: &Config) -> Result<Vec<Route>, envy::Error> {
+    (0..config.split_routes_inc)
+        .map(|n| envy::prefixed(format!("CISCO_SPLIT_INC_{}_", n)).from_env::<Route>())
+        .collect::<Result<Vec<_>, _>>()
+}
+
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error(transparent)]
     Io(#[from] std::io::Error),
     #[error(transparent)]
     Env(#[from] envy::Error),
+    #[error(transparent)]
+    Anyhow(#[from] anyhow::Error),
 }
 
 /// specifies if the network configuration has changed
-pub enum Changed {
+enum Changed {
     Yes,
     No,
 }
 
-pub struct Process {
+struct Process {
     config: Config,
     split_routes_inc: Vec<Route>,
     network_file: PathBuf,
 }
 
 impl Process {
-    pub fn new() -> Result<Process, envy::Error> {
-        let config = envy::from_env::<Config>()?;
-        Ok(Process {
+    pub fn new(config: Config, split_routes_inc: Vec<Route>) -> Process {
+        Process {
             network_file: PathBuf::from(SYSTEMD_NETWORKD_CONFIG_DIR)
                 .join(&config.tundev)
                 .with_extension("network"),
-            split_routes_inc: (0..config.split_routes_inc)
-                .map(|n| envy::prefixed(format!("CISCO_SPLIT_INC_{}_", n)).from_env::<Route>())
-                .collect::<Result<Vec<_>, _>>()?,
+            split_routes_inc,
             config,
-        })
+        }
     }
 
     pub fn run(&self) -> Result<Changed, std::io::Error> {
@@ -266,4 +273,40 @@ IPv6AcceptRA=no
         }
         Ok(Changed::Yes)
     }
+}
+
+pub(crate) fn run_locally_noenv(config: Config, routes: Vec<Route>) -> Result<(), Error> {
+    if matches!(Process::new(config, routes).run()?, Changed::Yes) {
+        Networkctl::new().reload()?;
+    }
+
+    Ok(())
+}
+
+pub fn run_locally() -> Result<(), Error> {
+    let config = envy::from_env::<Config>()?;
+    let routes = split_routes(&config)?;
+
+    run_locally_noenv(config, routes)
+}
+
+#[cfg(feature = "daemon")]
+pub async fn run_remotely<P: AsRef<std::path::Path>>(path: P) -> anyhow::Result<()> {
+    let config = envy::from_env::<Config>()?;
+    let routes = split_routes(&config)?;
+
+    let codec_builder = tokio_util::codec::length_delimited::LengthDelimitedCodec::builder();
+    let conn = tokio::net::UnixStream::connect(path).await?;
+    let transport = tarpc::serde_transport::new(
+        codec_builder.new_framed(conn),
+        tarpc::tokio_serde::formats::Bincode::default(),
+    );
+
+    daemon::ServiceClient::new(Default::default(), transport)
+        .spawn()
+        .run(tarpc::context::current(), config, routes)
+        .await?
+        .map_err(|s| anyhow::anyhow!(s))?;
+
+    Ok(())
 }
