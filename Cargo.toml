@@ -11,6 +11,6 @@ repository = "https://github.com/kstep/systemd-networkd-vpnc"
 documentation = "https://github.com/kstep/systemd-networkd-vpnc/blob/master/README.md"
 
 [dependencies]
-envy = "0.4.1"
-serde = "1.0.118"
-serde_derive = "1.0.117"
+envy = "0.4"
+serde = "1.0"
+serde_derive = "1.0"
