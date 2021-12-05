@@ -6,9 +6,12 @@ const NETWORKCTL: &str = "networkctl";
 const DEFAULT_TUNDEV: &str = "tun0";
 const SYSTEMD_NETWORKD_CONFIG_DIR: &str = "/etc/systemd/network/";
 
-enum Changed {
-    Yes,
-    No,
+fn find_bin_file(file: &str) -> Option<PathBuf> {
+    std::env::var("PATH").ok().and_then(|path| {
+        path.split(':')
+            .map(|p| Path::new(p).join(file))
+            .find(|p| p.exists())
+    })
 }
 
 struct Networkctl {
@@ -51,6 +54,16 @@ impl Route {
     fn default_port() -> u16 {
         0
     }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+enum Reason {
+    Connect,
+    Disconnect,
+    PreInit,
+    AttemptReconnect,
+    Reconnect,
 }
 
 #[derive(Debug, Deserialize)]
@@ -101,16 +114,6 @@ impl Config {
     }
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-enum Reason {
-    Connect,
-    Disconnect,
-    PreInit,
-    AttemptReconnect,
-    Reconnect,
-}
-
 #[derive(Debug)]
 enum Error {
     Io(std::io::Error),
@@ -129,11 +132,9 @@ impl From<std::io::Error> for Error {
     }
 }
 
-fn main() -> Result<(), Error> {
-    if matches!(Process::new()?.run()?, Changed::Yes) {
-        Networkctl::new().reload()?;
-    }
-    Ok(())
+enum Changed {
+    Yes,
+    No,
 }
 
 struct Process {
@@ -275,10 +276,9 @@ IPv6AcceptRA=no
     }
 }
 
-fn find_bin_file(file: &str) -> Option<PathBuf> {
-    std::env::var("PATH").ok().and_then(|path| {
-        path.split(':')
-            .map(|p| Path::new(p).join(file))
-            .find(|p| p.exists())
-    })
+fn main() -> Result<(), Error> {
+    if matches!(Process::new()?.run()?, Changed::Yes) {
+        Networkctl::new().reload()?;
+    }
+    Ok(())
 }
