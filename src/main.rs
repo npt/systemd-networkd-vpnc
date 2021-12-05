@@ -47,6 +47,7 @@ impl Route {
     fn default_protocol() -> u8 {
         0
     }
+
     fn default_port() -> u16 {
         0
     }
@@ -90,9 +91,11 @@ impl Config {
     fn default_netmasklen() -> u8 {
         32
     }
+
     fn default_split_routes() -> usize {
         0
     }
+
     fn default_tundev() -> String {
         String::from(DEFAULT_TUNDEV)
     }
