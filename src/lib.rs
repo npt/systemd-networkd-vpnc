@@ -100,7 +100,7 @@ pub(crate) struct Config {
     nbns: Option<String>,
 
     #[serde(rename = "cisco_def_domain")]
-    def_domain: String,
+    def_domain: Option<String>,
     #[serde(rename = "cisco_banner")]
     banner: Option<String>,
     #[serde(rename = "cisco_split_inc", default = "Config::default_split_routes")]
@@ -265,7 +265,9 @@ IPv6AcceptRA=no
         }
 
         if let Some(ref dns) = self.config.dns {
-            writeln!(file, "Domains={}", self.config.def_domain)?;
+            if let Some(ref def_domain) = self.config.def_domain {
+                writeln!(file, "Domains={}", def_domain)?;
+            }
 
             for ns in dns.split_ascii_whitespace() {
                 writeln!(file, "DNS={}", ns)?;
